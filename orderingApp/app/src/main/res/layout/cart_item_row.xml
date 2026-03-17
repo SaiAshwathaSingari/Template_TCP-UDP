@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    app:strokeWidth="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/cartItemImage"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:scaleType="centerCrop"
+            android:src="@mipmap/ic_launcher"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
+
+        <TextView
+            android:id="@+id/cartItemName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/btnCartRemove"
+            app:layout_constraintStart_toEndOf="@id/cartItemImage"
+            app:layout_constraintTop_toTopOf="parent"
+            android:text="Item Name" />
+
+        <TextView
+            android:id="@+id/cartItemPrice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textColor="?attr/colorPrimary"
+            app:layout_constraintStart_toStartOf="@id/cartItemName"
+            app:layout_constraintTop_toBottomOf="@id/cartItemName"
+            android:text="$0.00" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCartDecrease"
+            style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginTop="8dp"
+            android:padding="0dp"
+            android:text="-"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="@id/cartItemPrice"
+            app:layout_constraintTop_toBottomOf="@id/cartItemPrice" />
+
+        <TextView
+            android:id="@+id/tvCartQuantity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="12dp"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@id/btnCartDecrease"
+            app:layout_constraintStart_toEndOf="@id/btnCartDecrease"
+            app:layout_constraintTop_toTopOf="@id/btnCartDecrease"
+            android:text="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCartIncrease"
+            style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="0dp"
+            android:text="+"
+            app:layout_constraintBottom_toBottomOf="@id/btnCartDecrease"
+            app:layout_constraintStart_toEndOf="@id/tvCartQuantity"
+            app:layout_constraintTop_toTopOf="@id/btnCartDecrease" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCartRemove"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:icon="@android:drawable/ic_menu_delete"
+            app:iconTint="?attr/colorError"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

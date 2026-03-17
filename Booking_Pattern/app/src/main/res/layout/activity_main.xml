@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="@color/background_light">
+
+    <ImageView
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@mipmap/ic_launcher"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Booking Assistant"
+        android:textSize="28sp"
+        android:textColor="@color/primary_color"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Manage your bookings with ease"
+        android:textSize="16sp"
+        android:textColor="@color/black"
+        android:layout_marginBottom="48dp" />
+
+    <Button
+        android:id="@+id/btnRegister"
+        style="@style/Widget.Booking_Pattern.Button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="New Registration"
+        android:textSize="16sp"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btnViewRecords"
+        style="@style/Widget.Booking_Pattern.Button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="View Booking History"
+        android:textSize="16sp"
+        android:backgroundTint="@color/accent_color" />
+
+</LinearLayout>
