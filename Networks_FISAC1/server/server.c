@@ -843,6 +843,41 @@ static void handle_auth_login(client_t *client, const char *json) {
     LOG_INFO("User logged in: %s (id=%d)", username, user_id);
 }
 
+static void handle_auth_token(client_t *client, const char *json) {
+    char token[SESSION_TOKEN_LEN + 1];
+    char response[512];
+    int len;
+    int user_id = 0;
+    char username[MAX_USERNAME] = {0};
+
+    if (!json_get_string(json, "token", token, sizeof(token))) {
+        len = snprintf(response, sizeof(response),
+            "{\"type\":\"auth_response\",\"success\":false,\"error\":\"Missing token\"}");
+        ws_send_text(client->socket_fd, response, len);
+        return;
+    }
+
+    if (!db_validate_session(token, &user_id, username, sizeof(username))) {
+        len = snprintf(response, sizeof(response),
+            "{\"type\":\"auth_response\",\"success\":false,\"error\":\"Invalid session\"}");
+        ws_send_text(client->socket_fd, response, len);
+        return;
+    }
+
+    client->authenticated = 1;
+    client->user_id = user_id;
+    strncpy(client->username, username, MAX_USERNAME - 1);
+    client->username[MAX_USERNAME - 1] = '\0';
+    strncpy(client->session_token, token, SESSION_TOKEN_LEN);
+    client->session_token[SESSION_TOKEN_LEN] = '\0';
+
+    len = snprintf(response, sizeof(response),
+        "{\"type\":\"auth_response\",\"success\":true,\"user_id\":%d,"
+        "\"username\":\"%s\",\"token\":\"%s\"}", user_id, client->username, client->session_token);
+    ws_send_text(client->socket_fd, response, len);
+    LOG_INFO("WS token auth ok: %s (id=%d)", client->username, user_id);
+}
+
 static void handle_doc_create(client_t *client, const char *json) {
     char name[MAX_DOC_NAME], response[512];
     int doc_id, len;
@@ -1082,6 +1117,10 @@ static void dispatch_message(client_t *client, const char *payload, int payload_
     }
     if (strcmp(type, MSG_AUTH_LOGIN) == 0) {
         handle_auth_login(client, msg_copy);
+        return;
+    }
+    if (strcmp(type, MSG_AUTH_TOKEN) == 0) {
+        handle_auth_token(client, msg_copy);
         return;
     }
 

@@ -38,6 +38,7 @@
 
 #define MSG_AUTH_LOGIN      "auth_login"
 #define MSG_AUTH_REGISTER   "auth_register"
+#define MSG_AUTH_TOKEN      "auth_token"
 #define MSG_AUTH_RESPONSE   "auth_response"
 #define MSG_DOC_CREATE      "doc_create"
 #define MSG_DOC_JOIN        "doc_join"

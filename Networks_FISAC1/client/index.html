@@ -591,6 +591,10 @@ function connectWS() {
     document.getElementById('status-dot').classList.add('connected');
     document.getElementById('status-text').textContent = 'Connected (real-time)';
     stopDocPolling();
+    // Authenticate WS using the existing HTTP session token.
+    if (currentUser && currentUser.token) {
+      sendMsg({ type: 'auth_token', token: currentUser.token });
+    }
   };
 
   ws.onmessage = (event) => {
