@@ -1,0 +1,9 @@
+# Ignore everything by default (this repo lives on Desktop)
+*
+
+# Keep the ignore file itself
+!.gitignore
+
+# Track only this project folder
+!Networks_FISAC1/
+!Networks_FISAC1/**

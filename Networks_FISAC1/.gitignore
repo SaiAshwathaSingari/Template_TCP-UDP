@@ -1,0 +1,16 @@
+# Build outputs
+build/
+*.exe
+*.o
+*.obj
+
+# Runtime artifacts
+*.log
+server.log
+server_err.log
+*.db
+*.db-*
+
+# Downloaded tools/binaries (optional)
+tools/
+

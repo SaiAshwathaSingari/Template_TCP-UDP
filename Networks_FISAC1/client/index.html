@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CodeCollab - Real-Time Collaborative Editor</title>
+<style>
+:root {
+  --bg-primary: #1e1e2e;
+  --bg-secondary: #181825;
+  --bg-surface: #313244;
+  --bg-hover: #45475a;
+  --text-primary: #cdd6f4;
+  --text-secondary: #a6adc8;
+  --text-muted: #6c7086;
+  --accent: #89b4fa;
+  --accent-hover: #74c7ec;
+  --green: #a6e3a1;
+  --red: #f38ba8;
+  --yellow: #f9e2af;
+  --mauve: #cba6f7;
+  --border: #45475a;
+  --shadow: rgba(0,0,0,0.3);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+}
+
+#auth-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+}
+
+.auth-container {
+  background: var(--bg-surface);
+  border-radius: 16px;
+  padding: 40px;
+  width: 420px;
+  box-shadow: 0 20px 60px var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.auth-container h1 {
+  text-align: center;
+  margin-bottom: 8px;
+  font-size: 32px;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+}
+
+.auth-container .subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  font-size: 14px;
+}
+
+.form-group { margin-bottom: 18px; }
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: border-color 0.2s;
+  outline: none;
+}
+.form-group input:focus { border-color: var(--accent); }
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg-primary);
+  width: 100%;
+  padding: 12px;
+  margin-top: 4px;
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.btn-secondary:hover { background: rgba(137,180,250,0.1); }
+.btn-small { padding: 6px 14px; font-size: 12px; }
+
+.auth-toggle {
+  text-align: center;
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; }
+.auth-toggle a:hover { text-decoration: underline; }
+
+#auth-error {
+  color: var(--red);
+  font-size: 13px;
+  text-align: center;
+  margin-top: 14px;
+  min-height: 20px;
+}
+
+#auth-success {
+  color: var(--green);
+  font-size: 13px;
+  text-align: center;
+  margin-top: 8px;
+  min-height: 20px;
+}
+
+.auth-spinner {
+  display: none;
+  text-align: center;
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.auth-spinner.show { display: block; }
+
+/* Main App */
+#app-screen { display: none; height: 100vh; flex-direction: column; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  min-height: 48px;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-left .logo { font-size: 16px; font-weight: 700; color: var(--accent); }
+.topbar-left .doc-name {
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  background: var(--bg-surface);
+  border-radius: 6px;
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.user-badge { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+.user-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--mauve);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--bg-primary);
+}
+.version-badge {
+  font-size: 11px; color: var(--text-muted);
+  background: var(--bg-surface); padding: 3px 8px; border-radius: 4px;
+}
+
+.main-layout { display: flex; flex: 1; overflow: hidden; }
+
+.sidebar {
+  width: 260px; background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-header {
+  padding: 12px 16px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid var(--border);
+}
+.sidebar-header h3 {
+  font-size: 13px; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.doc-list { flex: 1; overflow-y: auto; padding: 8px; }
+.doc-item {
+  padding: 10px 12px; border-radius: 8px;
+  cursor: pointer; margin-bottom: 4px; transition: background 0.15s;
+}
+.doc-item:hover { background: var(--bg-hover); }
+.doc-item.active { background: var(--bg-surface); border: 1px solid var(--accent); }
+.doc-item .doc-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.doc-item .doc-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.doc-row { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.doc-actions { display:flex; gap:6px; }
+.icon-btn { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); border-radius: 8px; padding: 6px 8px; cursor:pointer; font-size:12px; }
+.icon-btn:hover { background: rgba(255,255,255,0.05); }
+.icon-btn.danger { border-color: rgba(243,139,168,0.6); color: var(--red); }
+.icon-btn.danger:hover { background: rgba(243,139,168,0.08); }
+
+.users-panel { padding: 12px 16px; border-top: 1px solid var(--border); }
+.users-panel h4 { font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
+.user-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; background: var(--bg-surface);
+  border-radius: 12px; font-size: 11px; margin: 2px; color: var(--text-secondary);
+}
+.user-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+.editor-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.editor-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 16px; background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted);
+}
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); transition: background 0.3s; }
+.status-dot.connected { background: var(--green); }
+
+#code-editor {
+  flex: 1; width: 100%; padding: 16px 20px;
+  background: var(--bg-primary); color: var(--text-primary);
+  border: none; outline: none; resize: none;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 14px; line-height: 1.6; tab-size: 4;
+  white-space: pre; overflow: auto;
+}
+#code-editor::placeholder { color: var(--text-muted); }
+
+.chat-panel {
+  width: 280px; background: var(--bg-secondary);
+  border-left: 1px solid var(--border); display: none; flex-direction: column;
+}
+.chat-panel.open { display: flex; }
+.chat-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.chat-header h3 { font-size: 14px; color: var(--text-primary); }
+.chat-messages { flex: 1; overflow-y: auto; padding: 12px; }
+.chat-msg { margin-bottom: 12px; }
+.chat-msg .chat-user { font-size: 12px; font-weight: 600; color: var(--mauve); }
+.chat-msg .chat-text { font-size: 13px; color: var(--text-secondary); margin-top: 2px; word-break: break-word; }
+.chat-input-row { display: flex; padding: 8px 12px; border-top: 1px solid var(--border); gap: 6px; }
+.chat-input-row input {
+  flex: 1; padding: 8px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-surface);
+  color: var(--text-primary); font-size: 13px; outline: none;
+}
+.chat-input-row input:focus { border-color: var(--accent); }
+
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 100;
+  justify-content: center; align-items: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg-surface); border-radius: 12px;
+  padding: 28px; width: 360px;
+  border: 1px solid var(--border); box-shadow: 0 20px 60px var(--shadow);
+}
+.modal h2 { font-size: 18px; margin-bottom: 16px; }
+.modal .form-group { margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+.toast {
+  position: fixed; bottom: 20px; right: 20px;
+  padding: 10px 20px; background: var(--bg-surface);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; color: var(--text-primary);
+  box-shadow: 0 4px 20px var(--shadow); z-index: 200;
+  animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s; opacity: 1;
+}
+@keyframes slideIn { from { transform: translateY(20px); opacity:0; } }
+@keyframes fadeOut { to { opacity:0; transform: translateY(10px); } }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-container">
+    <h1>CodeCollab</h1>
+    <p class="subtitle">Real-time collaborative code editor</p>
+
+    <div id="login-form">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="Enter username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
+      <p class="auth-toggle">Don't have an account? <a onclick="showRegister()">Register</a></p>
+    </div>
+
+    <div id="register-form" style="display:none;">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="reg-username" placeholder="Choose a username (3–64 chars, letters/numbers/._-)" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="reg-password" placeholder="Choose a password (4–128 chars)" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="reg-password2" placeholder="Re-enter password" autocomplete="new-password">
+      </div>
+      <button class="btn btn-primary" id="register-btn" onclick="doRegister()">Create Account</button>
+      <p class="auth-toggle">Already have an account? <a onclick="showLogin()">Sign In</a></p>
+    </div>
+
+    <div id="auth-spinner" class="auth-spinner">Connecting...</div>
+    <div id="auth-error"></div>
+    <div id="auth-success"></div>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="logo">CodeCollab</span>
+      <span class="doc-name" id="current-doc-name">No document open</span>
+      <span class="version-badge" id="version-badge">v0</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-secondary btn-small" onclick="toggleChat()">Chat</button>
+      <button class="btn btn-secondary btn-small" onclick="doLogout()">Logout</button>
+      <div class="user-badge">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <span id="display-username">User</span>
+      </div>
+    </div>
+  </div>
+  <div class="main-layout">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h3>Documents</h3>
+        <button class="btn btn-secondary btn-small" onclick="showCreateDoc()">+ New</button>
+      </div>
+      <div class="doc-list" id="doc-list"></div>
+      <div class="users-panel">
+        <h4>Online in Document</h4>
+        <div id="user-list"></div>
+      </div>
+    </div>
+    <div class="editor-area">
+      <div class="editor-toolbar">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Disconnected</span>
+        <span style="margin-left:auto;" id="cursor-info">Ln 1, Col 1</span>
+      </div>
+      <textarea id="code-editor" placeholder="Select or create a document to start coding..." spellcheck="false" disabled></textarea>
+    </div>
+    <div class="chat-panel" id="chat-panel">
+      <div class="chat-header">
+        <h3>Chat</h3>
+        <button class="btn btn-secondary btn-small" onclick="toggleChat()">x</button>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn btn-primary btn-small" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="create-doc-modal">
+  <div class="modal">
+    <h2>Create Document</h2>
+    <div class="form-group">
+      <label>Document Name</label>
+      <input type="text" id="new-doc-name" placeholder="e.g., main.py, server.js">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-small" onclick="hideCreateDoc()">Cancel</button>
+      <button class="btn btn-primary btn-small" onclick="createDoc()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== State ===== */
+let ws = null;
+let currentUser = null;
+let currentDocId = null;
+let isRemoteUpdate = false;
+let reconnectTimer = null;
+let editTimeout = null;
+let docPollTimer = null;
+let lastKnownVersion = 0;
+let lastLocalEditAt = 0;
+let suppressNextPollApply = false;
+
+/* ================================================================
+ *  AUTH — uses plain HTTP POST (works even if WebSocket is broken)
+ * ================================================================ */
+
+async function doRegister() {
+  const u = document.getElementById('reg-username').value.trim();
+  const p = document.getElementById('reg-password').value;
+  const p2 = document.getElementById('reg-password2').value;
+  clearAuthMessages();
+
+  const v = validateAuthInputs({ username: u, password: p, confirmPassword: p2, mode: 'register' });
+  if (!v.ok) { authError(v.error); return; }
+
+  setAuthBusy(true);
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      loginSuccess(data);
+    } else {
+      authError(data.error || 'Registration failed.');
+    }
+  } catch (e) {
+    authError('Cannot reach server. Make sure collab_server is running.');
+  }
+  setAuthBusy(false);
+}
+
+async function doLogin() {
+  const u = document.getElementById('login-username').value.trim();
+  const p = document.getElementById('login-password').value;
+  clearAuthMessages();
+
+  const v = validateAuthInputs({ username: u, password: p, mode: 'login' });
+  if (!v.ok) { authError(v.error); return; }
+
+  setAuthBusy(true);
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      loginSuccess(data);
+    } else {
+      authError(data.error || 'Invalid credentials.');
+    }
+  } catch (e) {
+    authError('Cannot reach server. Make sure collab_server is running.');
+  }
+  setAuthBusy(false);
+}
+
+function loginSuccess(data) {
+  currentUser = { user_id: data.user_id, username: data.username, token: data.token };
+  localStorage.setItem('codecollab_session', JSON.stringify(currentUser));
+  document.getElementById('auth-success').textContent = 'Welcome, ' + data.username + '!';
+  showApp();
+  // WebSocket is optional; the app works via HTTP APIs too.
+  connectWS();
+  requestDocList();
+  startChatPolling();
+}
+
+function authError(msg) {
+  document.getElementById('auth-error').textContent = msg;
+  showToast(msg);
+}
+
+function clearAuthMessages() {
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-success').textContent = '';
+}
+
+function setAuthBusy(busy) {
+  document.getElementById('login-btn').disabled = busy;
+  document.getElementById('register-btn').disabled = busy;
+  const sp = document.getElementById('auth-spinner');
+  sp.textContent = busy ? 'Please wait...' : '';
+  sp.classList.toggle('show', busy);
+}
+
+function validateAuthInputs({ username, password, confirmPassword, mode }) {
+  // Keep client-side limits aligned with server/common.h
+  const USERNAME_MIN = 3;
+  const USERNAME_MAX = 64;
+  const PASSWORD_MIN = 4;
+  const PASSWORD_MAX = 128;
+
+  if (!username || !password) return { ok: false, error: 'Enter username and password.' };
+
+  // Basic sanity: no control characters
+  if (/[\u0000-\u001F\u007F]/.test(username) || /[\u0000-\u001F\u007F]/.test(password)) {
+    return { ok: false, error: 'Inputs contain invalid control characters.' };
+  }
+
+  // Username rules: safe, predictable identifiers (matches typical industry constraints)
+  if (username.length < USERNAME_MIN || username.length > USERNAME_MAX) {
+    return { ok: false, error: `Username must be ${USERNAME_MIN}–${USERNAME_MAX} characters.` };
+  }
+  if (!/^[A-Za-z0-9._-]+$/.test(username)) {
+    return { ok: false, error: 'Username may use letters, numbers, dot (.), underscore (_), and hyphen (-) only.' };
+  }
+  if (username.startsWith('.') || username.startsWith('-') || username.startsWith('_') ||
+      username.endsWith('.') || username.endsWith('-') || username.endsWith('_')) {
+    return { ok: false, error: 'Username cannot start or end with . _ -' };
+  }
+
+  // Password rules: length only (server enforces too). We avoid over-restricting passwords.
+  if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) {
+    return { ok: false, error: `Password must be ${PASSWORD_MIN}–${PASSWORD_MAX} characters.` };
+  }
+
+  if (mode === 'register') {
+    if (typeof confirmPassword !== 'string' || confirmPassword.length === 0) {
+      return { ok: false, error: 'Please confirm your password.' };
+    }
+    if (password !== confirmPassword) {
+      return { ok: false, error: 'Passwords do not match.' };
+    }
+  }
+
+  return { ok: true };
+}
+
+function showLogin() {
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('register-form').style.display = 'none';
+  clearAuthMessages();
+}
+
+function showRegister() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'block';
+  clearAuthMessages();
+}
+
+function doLogout() {
+  localStorage.removeItem('codecollab_session');
+  currentUser = null;
+  currentDocId = null;
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('code-editor').value = '';
+  document.getElementById('code-editor').disabled = true;
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+  document.getElementById('display-username').textContent = currentUser.username;
+  document.getElementById('user-avatar').textContent = currentUser.username[0].toUpperCase();
+}
+
+/* ================================================================
+ *  WebSocket — only used AFTER login for real-time editing
+ * ================================================================ */
+
+function connectWS() {
+  if (ws) { ws.onclose = null; ws.close(); }
+
+  const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host;
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    document.getElementById('status-dot').classList.add('connected');
+    document.getElementById('status-text').textContent = 'Connected (real-time)';
+    stopDocPolling();
+  };
+
+  ws.onmessage = (event) => {
+    try { handleMessage(JSON.parse(event.data)); }
+    catch(e) { console.error('Parse error:', e, event.data); }
+  };
+
+  ws.onclose = () => {
+    document.getElementById('status-dot').classList.remove('connected');
+    document.getElementById('status-text').textContent = 'Disconnected (real-time unavailable)';
+    clearTimeout(reconnectTimer);
+    if (currentUser) reconnectTimer = setTimeout(connectWS, 4000);
+    startDocPolling();
+  };
+
+  ws.onerror = () => {
+    document.getElementById('status-text').textContent = 'WebSocket error';
+  };
+}
+
+function sendMsg(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+    return true;
+  }
+  return false;
+}
+
+async function apiFetch(path, options = {}) {
+  if (!currentUser || !currentUser.token) throw new Error('Not authenticated');
+  const headers = Object.assign({}, options.headers || {}, {
+    'Authorization': 'Bearer ' + currentUser.token
+  });
+  if (options.json) {
+    headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(options.json);
+    delete options.json;
+  }
+  const res = await fetch(path, Object.assign({}, options, { headers }));
+  if (res.status === 401) {
+    // Token expired/invalid -> reset to auth screen
+    localStorage.removeItem('codecollab_session');
+    localStorage.removeItem('codecollab_last_doc');
+    currentUser = null;
+    currentDocId = null;
+    throw new Error('Session expired. Please sign in again.');
+  }
+  const data = await res.json().catch(() => null);
+  if (!data) throw new Error('Bad response');
+  if (data.ok === false) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+/* ================================================================
+ *  Message handling (from WebSocket)
+ * ================================================================ */
+
+function handleMessage(msg) {
+  switch(msg.type) {
+    case 'auth_response':
+      if (msg.success) {
+        currentUser = { user_id: msg.user_id, username: msg.username, token: msg.token };
+        localStorage.setItem('codecollab_session', JSON.stringify(currentUser));
+        showApp();
+        requestDocList();
+      }
+      break;
+    case 'doc_list':    renderDocList(msg.documents || []); break;
+    case 'doc_created':
+      showToast('Document "' + msg.name + '" created');
+      requestDocList();
+      joinDoc(msg.doc_id);
+      break;
+    case 'doc_sync':
+      currentDocId = msg.doc_id;
+      document.getElementById('current-doc-name').textContent = msg.name;
+      document.getElementById('version-badge').textContent = 'v' + msg.version;
+      { const ed = document.getElementById('code-editor');
+        isRemoteUpdate = true; ed.value = msg.content; ed.disabled = false; isRemoteUpdate = false; }
+      highlightActiveDoc();
+      lastKnownVersion = msg.version || lastKnownVersion;
+      localStorage.setItem('codecollab_last_doc', String(msg.doc_id));
+      startDocPolling();
+      break;
+    case 'doc_edit':
+      if (msg.doc_id === currentDocId) {
+        const ed = document.getElementById('code-editor');
+        const cp = ed.selectionStart;
+        isRemoteUpdate = true; ed.value = msg.content;
+        ed.selectionStart = ed.selectionEnd = cp; isRemoteUpdate = false;
+        document.getElementById('version-badge').textContent = 'v' + msg.version;
+      }
+      break;
+    case 'doc_cursor': break;
+    case 'user_list':  renderUserList(msg.users || []); break;
+    case 'chat':       appendChat(msg.user, msg.message); break;
+    case 'error':      showToast(msg.message); break;
+  }
+}
+
+/* ===== Documents ===== */
+
+function requestDocList() {
+  // Try WS first; if it fails, use HTTP.
+  if (sendMsg({ type: 'doc_list' })) return;
+  apiFetch('/api/docs', { method: 'GET' })
+    .then(data => renderDocList(data.documents || []))
+    .catch(e => showToast(e.message));
+}
+
+function renderDocList(docs) {
+  const c = document.getElementById('doc-list');
+  c.innerHTML = '';
+  if (docs.length === 0) {
+    c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">No documents yet. Create one!</div>';
+    return;
+  }
+  docs.forEach(doc => {
+    const el = document.createElement('div');
+    el.className = 'doc-item' + (doc.id === currentDocId ? ' active' : '');
+    el.dataset.id = doc.id;
+    el.innerHTML =
+      '<div class="doc-row">' +
+        '<div>' +
+          '<div class="doc-title">' + escapeHtml(doc.name) + '</div>' +
+          '<div class="doc-meta">v' + doc.version + ' &middot; by ' + escapeHtml(doc.owner) + '</div>' +
+        '</div>' +
+        '<div class="doc-actions">' +
+          '<button class="icon-btn danger" title="Delete" data-action="delete">Delete</button>' +
+        '</div>' +
+      '</div>';
+    el.onclick = () => joinDoc(doc.id);
+    const delBtn = el.querySelector('[data-action=\"delete\"]');
+    delBtn.onclick = (ev) => { ev.stopPropagation(); deleteDoc(doc.id, doc.name); };
+    c.appendChild(el);
+  });
+}
+
+async function deleteDoc(docId, name) {
+  if (!confirm('Delete document \"' + name + '\"? This cannot be undone.')) return;
+  try {
+    await apiFetch('/api/docs/' + docId, { method: 'DELETE' });
+    if (currentDocId === docId) {
+      currentDocId = null;
+      document.getElementById('current-doc-name').textContent = 'No document open';
+      document.getElementById('version-badge').textContent = 'v0';
+      const ed = document.getElementById('code-editor');
+      ed.value = '';
+      ed.disabled = true;
+      stopDocPolling();
+    }
+    localStorage.removeItem('codecollab_last_doc');
+    showToast('Deleted');
+    requestDocList();
+  } catch (e) {
+    showToast(e.message);
+  }
+}
+
+function highlightActiveDoc() {
+  document.querySelectorAll('.doc-item').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.id) === currentDocId);
+  });
+}
+
+function joinDoc(docId) {
+  if (sendMsg({ type: 'doc_join', doc_id: docId })) return;
+  apiFetch('/api/docs/' + docId, { method: 'GET' })
+    .then(d => {
+      chatSinceId = 0;
+      document.getElementById('chat-messages').innerHTML = '';
+      lastKnownVersion = d.version || 0;
+      localStorage.setItem('codecollab_last_doc', String(d.doc_id));
+      handleMessage({ type: 'doc_sync', doc_id: d.doc_id, name: d.name, version: d.version, content: d.content });
+      startDocPolling();
+    })
+    .catch(e => showToast(e.message));
+}
+
+function showCreateDoc() {
+  document.getElementById('create-doc-modal').classList.add('show');
+  document.getElementById('new-doc-name').focus();
+}
+function hideCreateDoc() {
+  document.getElementById('create-doc-modal').classList.remove('show');
+  document.getElementById('new-doc-name').value = '';
+}
+function createDoc() {
+  const name = document.getElementById('new-doc-name').value.trim();
+  if (!name) return;
+  // Prefer HTTP API (works even without WebSocket)
+  apiFetch('/api/docs', { method: 'POST', json: { name } })
+    .then(() => requestDocList())
+    .catch(e => showToast(e.message));
+  hideCreateDoc();
+}
+
+/* ===== Editor ===== */
+
+const editor = document.getElementById('code-editor');
+
+editor.addEventListener('input', () => {
+  if (isRemoteUpdate || !currentDocId) return;
+  lastLocalEditAt = Date.now();
+  clearTimeout(editTimeout);
+  editTimeout = setTimeout(() => {
+    // WS real-time if available, else HTTP save
+    if (!sendMsg({ type: 'doc_edit', doc_id: currentDocId, content: editor.value, cursor: editor.selectionStart })) {
+      const currentVersionText = (document.getElementById('version-badge').textContent || 'v0').replace('v','');
+      const v = parseInt(currentVersionText) || 0;
+      suppressNextPollApply = true;
+      apiFetch('/api/docs/' + currentDocId, { method: 'PUT', json: { content: editor.value, version: v } })
+        .then(d => {
+          document.getElementById('version-badge').textContent = 'v' + d.version;
+          lastKnownVersion = d.version || lastKnownVersion;
+          suppressNextPollApply = false;
+        })
+        .catch(() => {}); // avoid toast spam while typing
+    }
+  }, 60);
+});
+
+function startDocPolling() {
+  if (!currentUser || !currentDocId) return;
+  if (ws && ws.readyState === WebSocket.OPEN) return;
+  if (docPollTimer) return;
+  docPollTimer = setInterval(async () => {
+    if (!currentUser || !currentDocId) return;
+    if (ws && ws.readyState === WebSocket.OPEN) return;
+    try {
+      const d = await apiFetch('/api/docs/' + currentDocId, { method: 'GET' });
+      const remoteV = d.version || 0;
+      if (remoteV <= lastKnownVersion) return;
+      if (Date.now() - lastLocalEditAt < 800) return;
+      if (suppressNextPollApply) return;
+
+      lastKnownVersion = remoteV;
+      const ed = document.getElementById('code-editor');
+      const cp = ed.selectionStart;
+      isRemoteUpdate = true;
+      ed.value = d.content || '';
+      ed.selectionStart = ed.selectionEnd = Math.min(cp, ed.value.length);
+      isRemoteUpdate = false;
+      document.getElementById('version-badge').textContent = 'v' + remoteV;
+    } catch (e) {
+      // ignore transient errors
+    }
+  }, 700);
+}
+
+function stopDocPolling() {
+  if (docPollTimer) {
+    clearInterval(docPollTimer);
+    docPollTimer = null;
+  }
+}
+
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = editor.selectionStart, end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, s) + '    ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = s + 4;
+    editor.dispatchEvent(new Event('input'));
+  }
+});
+
+editor.addEventListener('click', updateCursorInfo);
+editor.addEventListener('keyup', updateCursorInfo);
+
+function updateCursorInfo() {
+  const val = editor.value.substring(0, editor.selectionStart);
+  const lines = val.split('\n');
+  document.getElementById('cursor-info').textContent = 'Ln ' + lines.length + ', Col ' + (lines[lines.length-1].length+1);
+  if (currentDocId) sendMsg({ type: 'doc_cursor', doc_id: currentDocId, cursor: editor.selectionStart });
+}
+
+/* ===== Users, Chat, Utilities ===== */
+
+function renderUserList(users) {
+  const c = document.getElementById('user-list'); c.innerHTML = '';
+  users.forEach(u => {
+    const p = document.createElement('span'); p.className = 'user-pill';
+    p.innerHTML = '<span class="user-dot"></span> ' + escapeHtml(u.username);
+    c.appendChild(p);
+  });
+}
+
+function toggleChat() { document.getElementById('chat-panel').classList.toggle('open'); }
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg || !currentDocId) return;
+  if (!sendMsg({ type: 'chat', doc_id: currentDocId, message: msg })) {
+    apiFetch('/api/chat', { method: 'POST', json: { doc_id: currentDocId, message: msg } })
+      .catch(e => showToast(e.message));
+  }
+  input.value = '';
+}
+
+function appendChat(user, message) {
+  const c = document.getElementById('chat-messages');
+  const d = document.createElement('div'); d.className = 'chat-msg';
+  d.innerHTML = '<div class="chat-user">' + escapeHtml(user) + '</div><div class="chat-text">' + escapeHtml(message) + '</div>';
+  c.appendChild(d); c.scrollTop = c.scrollHeight;
+}
+
+let chatPollTimer = null;
+let chatSinceId = 0;
+
+function startChatPolling() {
+  if (chatPollTimer) clearInterval(chatPollTimer);
+  chatPollTimer = setInterval(() => {
+    if (!currentUser || !currentDocId) return;
+    // Only poll when WS isn't connected
+    if (ws && ws.readyState === WebSocket.OPEN) return;
+    apiFetch('/api/chat?doc_id=' + currentDocId + '&since=' + chatSinceId, { method: 'GET' })
+      .then(d => {
+        (d.messages || []).forEach(m => {
+          chatSinceId = Math.max(chatSinceId, m.id);
+          appendChat(m.user, m.message);
+        });
+      })
+      .catch(() => {});
+  }, 1500);
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+}
+
+function showToast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 3000);
+}
+
+/* Enter key shortcuts */
+document.getElementById('login-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('reg-password2').addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
+document.getElementById('new-doc-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createDoc(); });
+
+/* Auto-login from saved session */
+(function init() {
+  const saved = localStorage.getItem('codecollab_session');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      if (currentUser && currentUser.username) {
+        showApp();
+        connectWS();
+        requestDocList();
+        startChatPolling();
+        const lastDoc = parseInt(localStorage.getItem('codecollab_last_doc') || '0');
+        if (lastDoc > 0) {
+          // reopen last document after refresh
+          joinDoc(lastDoc);
+        }
+        return;
+      }
+    } catch(e) {}
+  }
+})();
+</script>
+</body>
+</html>
