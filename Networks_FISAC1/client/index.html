@@ -419,6 +419,9 @@ let lastLocalEditAt = 0;
 let suppressNextPollApply = false;
 let lastSentContent = null;
 let lastSendAt = 0;
+let pendingSendTimer = null;
+let pendingContent = null;
+let pendingCursor = 0;
 
 /* ================================================================
  *  AUTH — uses plain HTTP POST (works even if WebSocket is broken)
@@ -689,16 +692,21 @@ function handleMessage(msg) {
         isRemoteUpdate = true; ed.value = msg.content; ed.disabled = false; isRemoteUpdate = false; }
       highlightActiveDoc();
       lastKnownVersion = msg.version || lastKnownVersion;
+      lastSentContent = document.getElementById('code-editor').value;
       localStorage.setItem('codecollab_last_doc', String(msg.doc_id));
       startDocPolling();
       break;
     case 'doc_edit':
       if (msg.doc_id === currentDocId) {
+        // Apply only if this update is newer than what we already have.
+        const v = (typeof msg.version === 'number') ? msg.version : parseInt(msg.version || '0');
+        if (v && v <= lastKnownVersion) break;
+        if (v) lastKnownVersion = v;
         const ed = document.getElementById('code-editor');
         const cp = ed.selectionStart;
         isRemoteUpdate = true; ed.value = msg.content;
         ed.selectionStart = ed.selectionEnd = cp; isRemoteUpdate = false;
-        document.getElementById('version-badge').textContent = 'v' + msg.version;
+        document.getElementById('version-badge').textContent = 'v' + (v || msg.version);
       }
       break;
     case 'doc_cursor': break;
@@ -827,41 +835,63 @@ function createDoc() {
 
 const editor = document.getElementById('code-editor');
 
+function scheduleSendLatest(delayMs) {
+  if (pendingSendTimer) clearTimeout(pendingSendTimer);
+  pendingSendTimer = setTimeout(() => {
+    pendingSendTimer = null;
+    if (!currentDocId || isRemoteUpdate) return;
+    if (pendingContent == null) return;
+
+    const content = pendingContent;
+    const cursor = pendingCursor;
+    pendingContent = null;
+
+    // De-dup
+    if (lastSentContent === content) return;
+
+    const now = Date.now();
+    const minGapMs = 80; // cap send rate
+    const since = now - lastSendAt;
+    if (since < minGapMs) {
+      // Too soon: reschedule a trailing send so we never drop the last characters.
+      pendingContent = content;
+      pendingCursor = cursor;
+      scheduleSendLatest(minGapMs - since);
+      return;
+    }
+
+    const canUseWS = ws && ws.readyState === WebSocket.OPEN && wsAuthed;
+    if (canUseWS && sendMsg({ type: 'doc_edit', doc_id: currentDocId, content, cursor })) {
+      lastSentContent = content;
+      lastSendAt = Date.now();
+      return;
+    }
+
+    // Fallback to HTTP save
+    const currentVersionText = (document.getElementById('version-badge').textContent || 'v0').replace('v','');
+    const v = parseInt(currentVersionText) || 0;
+    suppressNextPollApply = true;
+    apiFetch('/api/docs/' + currentDocId, { method: 'PUT', json: { content, version: v } })
+      .then(d => {
+        document.getElementById('version-badge').textContent = 'v' + d.version;
+        lastKnownVersion = d.version || lastKnownVersion;
+        suppressNextPollApply = false;
+        lastSentContent = content;
+        lastSendAt = Date.now();
+      })
+      .catch(() => {}); // avoid toast spam while typing
+  }, delayMs);
+}
+
 editor.addEventListener('input', () => {
   if (isRemoteUpdate || !currentDocId) return;
   lastLocalEditAt = Date.now();
   clearTimeout(editTimeout);
   editTimeout = setTimeout(() => {
-    // WS real-time if available, else HTTP save
-    const content = editor.value;
-
-    // Avoid sending duplicate content and throttle bursts (protocol sends full doc each time).
-    const now = Date.now();
-    if (lastSentContent === content) return;
-    if (now - lastSendAt < 80) { /* cap ~12.5 sends/sec */ return; }
-
-    const canUseWS = ws && ws.readyState === WebSocket.OPEN && wsAuthed;
-    if (canUseWS && sendMsg({ type: 'doc_edit', doc_id: currentDocId, content, cursor: editor.selectionStart })) {
-      lastSentContent = content;
-      lastSendAt = now;
-      return;
-    }
-
-    // Fallback to HTTP save
-    {
-      const currentVersionText = (document.getElementById('version-badge').textContent || 'v0').replace('v','');
-      const v = parseInt(currentVersionText) || 0;
-      suppressNextPollApply = true;
-      apiFetch('/api/docs/' + currentDocId, { method: 'PUT', json: { content, version: v } })
-        .then(d => {
-          document.getElementById('version-badge').textContent = 'v' + d.version;
-          lastKnownVersion = d.version || lastKnownVersion;
-          suppressNextPollApply = false;
-          lastSentContent = content;
-          lastSendAt = Date.now();
-        })
-        .catch(() => {}); // avoid toast spam while typing
-    }
+    // Queue the latest state and ensure a trailing send (never drop last chars).
+    pendingContent = editor.value;
+    pendingCursor = editor.selectionStart;
+    scheduleSendLatest(0);
   }, 120);
 });
 
