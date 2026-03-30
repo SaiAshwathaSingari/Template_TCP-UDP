@@ -412,6 +412,7 @@ let isRemoteUpdate = false;
 let reconnectTimer = null;
 let editTimeout = null;
 let docPollTimer = null;
+let docListPollTimer = null;
 let lastKnownVersion = 0;
 let lastLocalEditAt = 0;
 let suppressNextPollApply = false;
@@ -483,6 +484,7 @@ function loginSuccess(data) {
   // WebSocket is optional; the app works via HTTP APIs too.
   connectWS();
   requestDocList();
+  startDocListPolling();
   startChatPolling();
 }
 
@@ -564,6 +566,7 @@ function doLogout() {
   currentUser = null;
   currentDocId = null;
   if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  stopDocListPolling();
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app-screen').style.display = 'none';
   document.getElementById('code-editor').value = '';
@@ -591,6 +594,7 @@ function connectWS() {
     document.getElementById('status-dot').classList.add('connected');
     document.getElementById('status-text').textContent = 'Connected (real-time)';
     stopDocPolling();
+    stopDocListPolling(); // doc list will be pushed over WS
     // Authenticate WS using the existing HTTP session token.
     if (currentUser && currentUser.token) {
       sendMsg({ type: 'auth_token', token: currentUser.token });
@@ -608,6 +612,7 @@ function connectWS() {
     clearTimeout(reconnectTimer);
     if (currentUser) reconnectTimer = setTimeout(connectWS, 4000);
     startDocPolling();
+    startDocListPolling(); // ensure new docs appear without reload
   };
 
   ws.onerror = () => {
@@ -703,6 +708,24 @@ function requestDocList() {
   apiFetch('/api/docs', { method: 'GET' })
     .then(data => renderDocList(data.documents || []))
     .catch(e => showToast(e.message));
+}
+
+function startDocListPolling() {
+  if (!currentUser) return;
+  if (docListPollTimer) return;
+  docListPollTimer = setInterval(() => {
+    if (!currentUser) return;
+    // If WS is connected, server will push doc_list updates.
+    if (ws && ws.readyState === WebSocket.OPEN) return;
+    requestDocList();
+  }, 2000);
+}
+
+function stopDocListPolling() {
+  if (docListPollTimer) {
+    clearInterval(docListPollTimer);
+    docListPollTimer = null;
+  }
 }
 
 function renderDocList(docs) {
@@ -947,6 +970,7 @@ document.getElementById('new-doc-name').addEventListener('keydown', (e) => { if 
         showApp();
         connectWS();
         requestDocList();
+        startDocListPolling();
         startChatPolling();
         const lastDoc = parseInt(localStorage.getItem('codecollab_last_doc') || '0');
         if (lastDoc > 0) {
