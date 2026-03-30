@@ -409,6 +409,7 @@ let ws = null;
 let currentUser = null;
 let currentDocId = null;
 let isRemoteUpdate = false;
+let wsAuthed = false;
 let reconnectTimer = null;
 let editTimeout = null;
 let docPollTimer = null;
@@ -416,6 +417,8 @@ let docListPollTimer = null;
 let lastKnownVersion = 0;
 let lastLocalEditAt = 0;
 let suppressNextPollApply = false;
+let lastSentContent = null;
+let lastSendAt = 0;
 
 /* ================================================================
  *  AUTH — uses plain HTTP POST (works even if WebSocket is broken)
@@ -586,15 +589,14 @@ function showApp() {
 
 function connectWS() {
   if (ws) { ws.onclose = null; ws.close(); }
+  wsAuthed = false;
 
   const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host;
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
     document.getElementById('status-dot').classList.add('connected');
-    document.getElementById('status-text').textContent = 'Connected (real-time)';
-    stopDocPolling();
-    stopDocListPolling(); // doc list will be pushed over WS
+    document.getElementById('status-text').textContent = 'Connected (authenticating...)';
     // Authenticate WS using the existing HTTP session token.
     if (currentUser && currentUser.token) {
       sendMsg({ type: 'auth_token', token: currentUser.token });
@@ -665,6 +667,12 @@ function handleMessage(msg) {
         localStorage.setItem('codecollab_session', JSON.stringify(currentUser));
         showApp();
         requestDocList();
+
+        // If this auth_response came from WS token auth, mark WS as usable.
+        wsAuthed = true;
+        document.getElementById('status-text').textContent = 'Connected (real-time)';
+        stopDocPolling();
+        stopDocListPolling();
       }
       break;
     case 'doc_list':    renderDocList(msg.documents || []); break;
@@ -825,19 +833,36 @@ editor.addEventListener('input', () => {
   clearTimeout(editTimeout);
   editTimeout = setTimeout(() => {
     // WS real-time if available, else HTTP save
-    if (!sendMsg({ type: 'doc_edit', doc_id: currentDocId, content: editor.value, cursor: editor.selectionStart })) {
+    const content = editor.value;
+
+    // Avoid sending duplicate content and throttle bursts (protocol sends full doc each time).
+    const now = Date.now();
+    if (lastSentContent === content) return;
+    if (now - lastSendAt < 80) { /* cap ~12.5 sends/sec */ return; }
+
+    const canUseWS = ws && ws.readyState === WebSocket.OPEN && wsAuthed;
+    if (canUseWS && sendMsg({ type: 'doc_edit', doc_id: currentDocId, content, cursor: editor.selectionStart })) {
+      lastSentContent = content;
+      lastSendAt = now;
+      return;
+    }
+
+    // Fallback to HTTP save
+    {
       const currentVersionText = (document.getElementById('version-badge').textContent || 'v0').replace('v','');
       const v = parseInt(currentVersionText) || 0;
       suppressNextPollApply = true;
-      apiFetch('/api/docs/' + currentDocId, { method: 'PUT', json: { content: editor.value, version: v } })
+      apiFetch('/api/docs/' + currentDocId, { method: 'PUT', json: { content, version: v } })
         .then(d => {
           document.getElementById('version-badge').textContent = 'v' + d.version;
           lastKnownVersion = d.version || lastKnownVersion;
           suppressNextPollApply = false;
+          lastSentContent = content;
+          lastSendAt = Date.now();
         })
         .catch(() => {}); // avoid toast spam while typing
     }
-  }, 60);
+  }, 120);
 });
 
 function startDocPolling() {
