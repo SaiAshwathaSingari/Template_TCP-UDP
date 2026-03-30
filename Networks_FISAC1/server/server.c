@@ -199,6 +199,7 @@ static int http_send_json(socket_t fd, int status, const char *json_body) {
     const char *st = (status == 200) ? "200 OK" :
                      (status == 400) ? "400 Bad Request" :
                      (status == 401) ? "401 Unauthorized" :
+                     (status == 403) ? "403 Forbidden" :
                      (status == 404) ? "404 Not Found" : "500 Internal Server Error";
     int hlen = snprintf(hdr, sizeof(hdr),
         "HTTP/1.1 %s\r\n"
@@ -523,7 +524,7 @@ static int http_handle_api(socket_t fd, const char *req, int req_len) {
                             return 1;
                         }
                         if (owner != authed_user_id) {
-                            http_send_json(fd, 401, "{\"ok\":false,\"error\":\"Only owner can delete\"}");
+                            http_send_json(fd, 403, "{\"ok\":false,\"error\":\"Only owner can delete\"}");
                             return 1;
                         }
                         if (db_delete_document(doc_id) < 0) {
