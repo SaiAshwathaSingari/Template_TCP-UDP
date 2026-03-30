@@ -568,6 +568,7 @@ function showRegister() {
 }
 
 function doLogout() {
+  flushPendingEdits();
   localStorage.removeItem('codecollab_session');
   currentUser = null;
   currentDocId = null;
@@ -800,6 +801,7 @@ function highlightActiveDoc() {
 }
 
 function joinDoc(docId) {
+  flushPendingEdits();
   if (sendMsg({ type: 'doc_join', doc_id: docId })) return;
   apiFetch('/api/docs/' + docId, { method: 'GET' })
     .then(d => {
@@ -883,6 +885,18 @@ function scheduleSendLatest(delayMs) {
   }, delayMs);
 }
 
+function flushPendingEdits() {
+  if (!currentDocId) return;
+  if (isRemoteUpdate) return;
+  if (pendingSendTimer) {
+    clearTimeout(pendingSendTimer);
+    pendingSendTimer = null;
+  }
+  pendingContent = editor.value;
+  pendingCursor = editor.selectionStart;
+  scheduleSendLatest(0);
+}
+
 editor.addEventListener('input', () => {
   if (isRemoteUpdate || !currentDocId) return;
   lastLocalEditAt = Date.now();
@@ -894,6 +908,13 @@ editor.addEventListener('input', () => {
     scheduleSendLatest(0);
   }, 120);
 });
+
+// Flush edits when user stops focusing the editor or leaves the page/tab.
+editor.addEventListener('blur', flushPendingEdits);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushPendingEdits();
+});
+window.addEventListener('beforeunload', flushPendingEdits);
 
 function startDocPolling() {
   if (!currentUser || !currentDocId) return;
